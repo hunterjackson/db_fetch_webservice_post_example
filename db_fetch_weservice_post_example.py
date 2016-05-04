@@ -33,10 +33,10 @@ def post_data(e_point):
         response = requests.post(e_point, payload)
 
         if response.status_code == requests.codes.ok:
-            logging.debug(response.text)
+            logging.info("response from " + e_point + " is " + response.text)
         else:
-            logging.error('Post failed on endpoint=' + e_point + " with status code " +
-                          response.status_code + ' response message=' + response.text)
+            logging.error('Post failed on endpoint=' + str(e_point) + " with status code " +
+                          str(response.status_code) + ' response message=' + str(response.text))
 
         return True
 
@@ -51,6 +51,7 @@ config = configparser.ConfigParser()  # setup configparser
 logging.basicConfig(format='%(levelname)s:%(asctime)s %(message)s', filename='server_' + str(datetime.date.today()) +
                                                                              '.log', level=logging.INFO)
 logging.info('Server started')
+data_cache = []  # initalize a cache for if the server goes down
 
 while True:
 
@@ -99,22 +100,32 @@ while True:
         # attempt db query
         try:
             curs.execute("SELECT * FROM DATA WHERE TIME_SINCE_EPOCH > " + str(int(time()) - int(pause_time)))
-            data = curs.fetchall()  # put query in data variable
+            data = curs.fetchall()
+            if data is not None:
+                data_cache = data_cache + [data]  # put query in data variable
         except pypyodbc.Error:
             logging.error("Failed to execute sql statement will attempt reconnection")
             db_conn.close()
             break  # if cannot execute sql command assume connection has been broken break for reconnection
 
+
         # minimal parsing and send data to foreign server, picking endpoint based on data
-        for row in data:
-            if row[2] == 'machine1':
-                res = post_data(endpoint1)
+        if data_cache:
 
-            elif row[2] == 'machine2':
-                res = post_data(endpoint2)
+            for data in data_cache:
+                for row in data:
+                    if row[2] == 'machine1':
+                        res = post_data(endpoint1)
 
-            else:
-                res = True  # handles the case if machinery is not machine 1 or machine 2
+                    elif row[2] == 'machine2':
+                        res = post_data(endpoint2)
 
-            if res is False:
-                break  # if the web address cannot be posted to break and reread config file in hopes of a change
+                    else:
+                        logging.debug("No data in this row is worthy of posting row = " + str(row))
+                        res = True  # handles the case if machinery is not machine 1 or machine 2
+
+                    if res is False:
+                        data_cache = data_cache[data_cache.index(data):]  # resets data cache to avoid duplicate sends
+                        break  # if the web address cannot be posted to break & reread config file in hopes of a change
+
+            data_cache = []  # resets cache since it has all been processed
