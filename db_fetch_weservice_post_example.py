@@ -98,7 +98,7 @@ while True:
 
         # attempt db query
         try:
-            curs.execute("SELECT * FROM DATA WHERE TIME_SINCE_EPOCH > " + str(time() - pause_time))
+            curs.execute("SELECT * FROM DATA WHERE TIME_SINCE_EPOCH > " + str(int(time()) - int(pause_time)))
             data = curs.fetchall()  # put query in data variable
         except pypyodbc.Error:
             logging.error("Failed to execute sql statement will attempt reconnection")
