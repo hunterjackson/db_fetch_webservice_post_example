@@ -39,9 +39,8 @@ def post_data(e_point):
                           response.status_code + ' response message=' + response.text)
 
         return True
-    # normally a terrible practice but in this case if it doesn't work
-    # I just want it to continue as fast as possible I don't care why
-    except:
+
+    except requests:
         logging.error("Failed to post to endpoint=" + e_point)
         return False
 
